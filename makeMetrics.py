@@ -46,9 +46,22 @@ def isCantainAPI(treeNodes):		# check if the subtree cantains a API node
 			return True
 	return False
 
-def addSubTree(treeNodes, SubTrees):
+def cmpSubTree(newTree, tree):		# check if two trees are the same
+	if newTree[0].type != tree[0].type:
+		return False
+	if len(newTree[0].child) != len(tree[0].child):
+		return False
+	for i in range(len(newTree[0].child)):
+		
+
+
+def addSubTree(treeNodes, SubTrees):		# if subtree not in SubTrees, add it
 	for tree in SubTrees:
-		if cmpSubTree()
+		if cmpSubTree(treeNodes, tree) == True:
+			return SubTrees.indexof(tree)
+		else:
+			SubTrees.append(tree)
+			return len(SubTrees)-1
 
 def getSubTrees(SubTrees, Nodes, rootId):		# get subtrees of a function, depth is 3
 	treeNodes = []			# a list of Node
