@@ -2,6 +2,8 @@ from py2neo import Graph
 import numpy as np
 import copy
 
+np.set_printoptions(threshold='nan')
+
 class Node():
 	def __init__(self, m):
 		if m.properties['type'] in ['Callee', 'ParameterType', 'IdentifierDeclType']:
@@ -82,7 +84,10 @@ def getSubTrees(SubTrees, Nodes, rootId, treeSequence):		# get subtrees of a fun
 			getSubTrees(SubTrees, Nodes, item, treeSequence)
 
 def makeMat(Matrix):
-	itemLength = np.max(map(np.max, Matrix))+1		# np.max return the largest index of the subStree, which is length-1
+	def is_greater_than_zero(array):
+		return len(array) > 0
+
+	itemLength = np.max(map(np.max, filter(is_greater_than_zero, Matrix)))+1		# np.max return the largest index of the subStree, which is length-1
 	NewMat = np.zeros((len(Matrix), itemLength))
 	for i in range(len(Matrix)):
 		for j in range(len(Matrix[i])):
@@ -97,7 +102,12 @@ def tfIdf(Matrix):
 		idf[i] = sum(np.greater(line, 0))*1.0/d
 	tf = copy.copy(Matrix)
 	for i in range(len(tf)):		# tf
-		tf[i] = tf[i]*1.0 / sum(tf[i])
+		line_sum = sum(tf[i])
+		for j in range(len(tf[i])):
+			if line_sum == 0:
+				tf[i][j] = 0
+			else:
+				tf[i][j] = tf[i][j]*1.0 / line_sum
 	for i in range(np.shape(tf)[1]):
 		tf[:,i] = tf[:,i]*idf[i]
 	return np.mat(tf)		# tfidf
@@ -107,6 +117,7 @@ def main():
 	graph = Graph()
 	cypher = graph.cypher
 	FunctionIds = getFunctions(cypher)		# get function id in the whole project
+	functionNum = len(FunctionIds)
 	SubTrees = []
 	Map = []
 	Matrix = []
@@ -121,14 +132,15 @@ def main():
 		getSubTrees(SubTrees, Nodes, rootId, treeSequence)
 		treeSequence = np.array(treeSequence)
 		Matrix.append(treeSequence)
+		print 'processing function {0}/{1}...'.format(FunctionIds.index(item), functionNum)
 
 	Matrix = makeMat(Matrix)		# change the sequences into a matrix
 	weights = tfIdf(Matrix)
 	Matrix = np.multiply(np.mat(Matrix), weights)
-	print Matrix
-
-
-
+	U, Sigma, Vt = np.linalg.svd(Matrix)		# SVD with numpy
+	print U
+	# add: matrix dump and load
+	# add: cosine distance and sort
 
 
 if __name__ == '__main__':
