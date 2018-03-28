@@ -1,6 +1,7 @@
 from py2neo import Graph
 import numpy as np
 import copy
+import sys
 
 np.set_printoptions(threshold='nan')
 
@@ -111,9 +112,26 @@ def tfIdf(Matrix):
 	for i in range(np.shape(tf)[1]):
 		tf[:,i] = tf[:,i]*idf[i]
 	return np.mat(tf)		# tfidf
-		
+
+def findFunctionIndex(toCheck, FunctionIds):
+	for item in FunctionIds:
+		if item[0] == toCheck:
+			return FunctionIds.index(item)
+	return -1
+
+
+def calSimilarity(Vt, toCheck, functionNum):
+	simList = []
+	line2Check = Vt[:, toCheck]
+	norm = np.linalg.norm(line2Check)
+	for i in range(functionNum):
+		line = Vt[:, i]
+		sim = np.vdot(line, line2Check) / (np.linalg.norm(line)*norm)		# calculate the cosine similarity
+		simList.append(abs(sim))
+	return simList
 
 def main():
+	matrixPath = '/media/yy/10A4078410A40784/SVD/matrix.npy'
 	graph = Graph()
 	cypher = graph.cypher
 	FunctionIds = getFunctions(cypher)		# get function id in the whole project
@@ -121,6 +139,18 @@ def main():
 	SubTrees = []
 	Map = []
 	Matrix = []
+
+	if sys.argv[1] == 'load':
+		Matrix = np.load(matrixPath)
+		U, Sigma, Vt = np.linalg.svd(Matrix)		# SVD with numpy
+		toCheck = findFunctionIndex(int(input('input one integer:\n')), FunctionIds)	# input function id to check
+		if toCheck == -1:
+			raise IndexError("Function id not match.")
+		simList = calSimilarity(Vt, toCheck, functionNum)		# calculate and sort the cosine similarities of Vt's cols (i.e. V's rows)
+		indexList = np.argsort(-np.array(simList))			# sort by similarity
+		for num in indexList[:20]:
+			print FunctionIds[num][0]
+		return		
 
 	for item in FunctionIds:
 		functionId = item[0]
@@ -137,10 +167,7 @@ def main():
 	Matrix = makeMat(Matrix)		# change the sequences into a matrix
 	weights = tfIdf(Matrix)
 	Matrix = np.multiply(np.mat(Matrix), weights)
-	U, Sigma, Vt = np.linalg.svd(Matrix)		# SVD with numpy
-	print U
-	# add: matrix dump and load
-	# add: cosine distance and sort
+	np.save(matrixPath, Matrix)
 
 
 if __name__ == '__main__':
