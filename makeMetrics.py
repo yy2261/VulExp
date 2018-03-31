@@ -2,6 +2,7 @@ from py2neo import Graph
 import numpy as np
 import copy
 import sys
+import math
 
 np.set_printoptions(threshold='nan')
 
@@ -9,6 +10,8 @@ class Node():
 	def __init__(self, m):
 		if m.properties['type'] in ['Callee', 'ParameterType', 'IdentifierDeclType']:
 			self.type = m.properties['code']
+			if '[' in self.type:
+				self.type = self.type.split('[')[0]+'array'
 		else:
 			self.type = None
 		self.child = []
@@ -100,7 +103,7 @@ def tfIdf(Matrix):
 	idf = np.zeros(np.shape(Matrix)[1])
 	for i in range(np.shape(Matrix)[1]):
 		line = Matrix[:,i]
-		idf[i] = sum(np.greater(line, 0))*1.0/d
+		idf[i] = math.log(10, sum(np.greater(line, 0))*1.0/d)
 	tf = copy.copy(Matrix)
 	for i in range(len(tf)):		# tf
 		line_sum = sum(tf[i])
@@ -111,7 +114,7 @@ def tfIdf(Matrix):
 				tf[i][j] = tf[i][j]*1.0 / line_sum
 	for i in range(np.shape(tf)[1]):
 		tf[:,i] = tf[:,i]*idf[i]
-	return np.mat(tf)		# tfidf
+	return np.mat(tf).T		# tfidf and transpose
 
 def findFunctionIndex(toCheck, FunctionIds):
 	for item in FunctionIds:
@@ -122,16 +125,24 @@ def findFunctionIndex(toCheck, FunctionIds):
 
 def calSimilarity(Vt, toCheck, functionNum):
 	simList = []
-	line2Check = Vt[:, toCheck]
+	line2Check = Vt[:60, toCheck]
 	norm = np.linalg.norm(line2Check)
 	for i in range(functionNum):
-		line = Vt[:, i]
+		line = Vt[:60, i]
 		sim = np.vdot(line, line2Check) / (np.linalg.norm(line)*norm)		# calculate the cosine similarity
 		simList.append(abs(sim))
 	return simList
 
+def printSubTree(subtree):
+	print 'this subtree is:'
+	for node in subtree:
+		print 'type:'
+		print node.type
+		print 'length:'
+		print len(node.child)
+
 def main():
-	matrixPath = '/media/yy/10A4078410A40784/SVD/matrix.npy'
+	matrixPath = sys.argv[2]
 	graph = Graph()
 	cypher = graph.cypher
 	FunctionIds = getFunctions(cypher)		# get function id in the whole project
@@ -150,6 +161,7 @@ def main():
 		indexList = np.argsort(-np.array(simList))			# sort by similarity
 		for num in indexList[:20]:
 			print FunctionIds[num][0]
+			print simList[num]
 		return		
 
 	for item in FunctionIds:
@@ -166,7 +178,7 @@ def main():
 
 	Matrix = makeMat(Matrix)		# change the sequences into a matrix
 	weights = tfIdf(Matrix)
-	Matrix = np.multiply(np.mat(Matrix), weights)
+	Matrix = np.multiply(np.mat(Matrix).T, weights)
 	np.save(matrixPath, Matrix)
 
 
